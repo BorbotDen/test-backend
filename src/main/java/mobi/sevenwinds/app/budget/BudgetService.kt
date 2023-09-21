@@ -26,7 +26,9 @@ object BudgetService {
                 .limit(param.limit, param.offset)
 
             val total = query.count()
-            val data = BudgetEntity.wrapRows(query).map { it.toResponse() }
+            val data = BudgetEntity.wrapRows(query)
+                .sortedWith(compareBy<BudgetEntity> {it.month}.thenByDescending {it.amount})
+                .map { it.toResponse() }
 
             val sumByType = data.groupBy { it.type.name }.mapValues { it.value.sumOf { v -> v.amount } }
 
