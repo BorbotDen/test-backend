@@ -23,7 +23,7 @@ object DatabaseFactory {
         val flyway = Flyway.configure().dataSource(dbUrl, dbUser, dbPassword)
             .locations("classpath:db/migration")
             .baselineOnMigrate(true)
-            .outOfOrder(true)
+            .outOfOrder(false)
             .load()
 
         if (appConfig.property("flyway.clean").getString().toBoolean()) {
