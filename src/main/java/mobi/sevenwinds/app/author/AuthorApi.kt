@@ -17,7 +17,7 @@ fun NormalOpenAPIRoute.author() {
 }
 
 data class AuthorRecord(
-    val name: String,
+    val name: String?,
 )
 
 data class AuthorResponse(
