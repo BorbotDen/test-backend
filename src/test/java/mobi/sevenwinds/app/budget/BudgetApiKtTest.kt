@@ -1,11 +1,14 @@
 package mobi.sevenwinds.app.budget
 
 import io.restassured.RestAssured
+import kotlinx.coroutines.runBlocking
+import mobi.sevenwinds.app.budget.BudgetService.addRecord
 import mobi.sevenwinds.common.ServerTest
 import mobi.sevenwinds.common.jsonBody
 import mobi.sevenwinds.common.toResponse
 import org.jetbrains.exposed.sql.deleteAll
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.junit.After
 import org.junit.Assert
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -18,7 +21,7 @@ class BudgetApiKtTest : ServerTest() {
     }
 
     @Test
-    fun testBudgetPagination() {
+    fun testBudgetPagination() = runBlocking {
         addRecord(BudgetRecord(2020, 5, 10, BudgetType.Приход))
         addRecord(BudgetRecord(2020, 5, 5, BudgetType.Приход))
         addRecord(BudgetRecord(2020, 5, 20, BudgetType.Приход))
@@ -40,7 +43,7 @@ class BudgetApiKtTest : ServerTest() {
     }
 
     @Test
-    fun testStatsSortOrder() {
+    fun testStatsSortOrder() = runBlocking {
         addRecord(BudgetRecord(2020, 5, 100, BudgetType.Приход))
         addRecord(BudgetRecord(2020, 1, 5, BudgetType.Приход))
         addRecord(BudgetRecord(2020, 5, 50, BudgetType.Приход))
@@ -51,14 +54,24 @@ class BudgetApiKtTest : ServerTest() {
 
         RestAssured.given()
             .get("/budget/year/2020/stats?limit=100&offset=0")
-            .toResponse<BudgetYearStatsResponse>().let { response ->
-                println(response.items)
-
-                Assert.assertEquals(30, response.items[0].amount)
-                Assert.assertEquals(5, response.items[1].amount)
-                Assert.assertEquals(400, response.items[2].amount)
-                Assert.assertEquals(100, response.items[3].amount)
-                Assert.assertEquals(50, response.items[4].amount)
+            .then()
+            .extract()
+            .body()
+            .jsonPath().getList("items", BudgetRecord::class.java).let { response ->
+                println(response)
+                response.forEachIndexed { index, item ->
+                    println(item::class.simpleName)
+                    val amount = item.amount
+                    val expectedAmount = when (index) {
+                        0 -> 30
+                        1 -> 5
+                        2 -> 400
+                        3 -> 100
+                        4 -> 50
+                        else -> throw IllegalArgumentException("Unexpected index: $index")
+                    }
+                    Assert.assertEquals(expectedAmount, amount)
+                }
             }
     }
 
@@ -74,13 +87,5 @@ class BudgetApiKtTest : ServerTest() {
             .post("/budget/add")
             .then().statusCode(400)
     }
-
-    private fun addRecord(record: BudgetRecord) {
-        RestAssured.given()
-            .jsonBody(record)
-            .post("/budget/add")
-            .toResponse<BudgetRecord>().let { response ->
-                Assert.assertEquals(record, response)
-            }
-    }
 }
+
